@@ -1,0 +1,79 @@
+{
+  "entities": {
+    "Semester": {
+      "title": "Semester",
+      "description": "A study semester or period.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "name": { "type": "string", "description": "Semester name" },
+        "startDate": { "type": "string", "format": "date", "description": "Start date of the semester" },
+        "endDate": { "type": "string", "format": "date", "description": "End date of the semester" },
+        "isActive": { "type": "boolean", "description": "Whether this is the current active semester" },
+        "uid": { "type": "string", "description": "Owner's user ID" }
+      },
+      "required": ["id", "name", "startDate", "endDate", "isActive", "uid"]
+    },
+    "Subject": {
+      "title": "Subject",
+      "description": "A subject or course being studied.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "semesterId": { "type": "string", "description": "Reference to the semester" },
+        "name": { "type": "string", "description": "Subject name" },
+        "dailyGoalMinutes": { "type": "number", "description": "Daily study goal in minutes" },
+        "isArchived": { "type": "boolean", "description": "Whether the subject is archived" },
+        "color": { "type": "string", "description": "Hex color code for the subject" },
+        "uid": { "type": "string", "description": "Owner's user ID" }
+      },
+      "required": ["id", "semesterId", "name", "dailyGoalMinutes", "isArchived", "color", "uid"]
+    },
+    "Location": {
+      "title": "Location",
+      "description": "A study location.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "name": { "type": "string", "description": "Location name" },
+        "uid": { "type": "string", "description": "Owner's user ID" }
+      },
+      "required": ["id", "name", "uid"]
+    },
+    "StudySession": {
+      "title": "StudySession",
+      "description": "A single study session log.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "subjectId": { "type": "string", "description": "Reference to the subject" },
+        "locationId": { "type": "string", "description": "Reference to the location" },
+        "startTime": { "type": "string", "format": "date-time", "description": "Session start time" },
+        "endTime": { "type": "string", "format": "date-time", "description": "Session end time" },
+        "durationSeconds": { "type": "number", "description": "Total duration in seconds" },
+        "interruptions": { "type": "number", "description": "Number of interruptions" },
+        "dateLogged": { "type": "string", "format": "date", "description": "Date the session is logged to (Midnight Rule)" },
+        "uid": { "type": "string", "description": "Owner's user ID" }
+      },
+      "required": ["id", "subjectId", "locationId", "startTime", "endTime", "durationSeconds", "interruptions", "dateLogged", "uid"]
+    }
+  },
+  "firestore": {
+    "/semesters/{semesterId}": {
+      "schema": "Semester",
+      "description": "User semesters"
+    },
+    "/subjects/{subjectId}": {
+      "schema": "Subject",
+      "description": "User subjects"
+    },
+    "/locations/{locationId}": {
+      "schema": "Location",
+      "description": "User locations"
+    },
+    "/sessions/{sessionId}": {
+      "schema": "StudySession",
+      "description": "User study sessions"
+    }
+  }
+}

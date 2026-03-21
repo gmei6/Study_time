@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-[#050505] text-[#E0E0E0] font-sans antialiased;
+  }
+}
+
+@layer components {
+  .midnight-panel {
+    @apply bg-[#121212] rounded-[40px] p-6 shadow-xl border border-white/5;
+  }
+  
+  .midnight-input {
+    @apply bg-[#1A1A1A] rounded-[24px] px-6 py-4 text-[#E0E0E0] border-none focus:ring-2 focus:ring-white/10 outline-none transition-all;
+  }
+  
+  .midnight-button {
+    @apply bg-[#1A1A1A] hover:bg-[#252525] text-[#E0E0E0] rounded-[24px] px-8 py-4 font-medium transition-all active:scale-95;
+  }
+  
+  .midnight-button-primary {
+    @apply bg-white text-black hover:bg-[#F0F0F0] rounded-[24px] px-8 py-4 font-semibold transition-all active:scale-95;
+  }
+
+  .midnight-card {
+    @apply bg-[#121212] rounded-[32px] p-5 border border-white/5;
+  }
+}
+
+/* Custom scrollbar for the midnight theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050505;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1A1A1A;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #252525;
+}

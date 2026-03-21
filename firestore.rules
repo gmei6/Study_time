@@ -1,0 +1,193 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: semesters
+    // Document ID: semesterId
+    // Fields:
+    //   - id: string (required) - Unique identifier
+    //   - name: string (required, 1-100 chars) - Semester name
+    //   - startDate: string (required, ISO 8601) - Start date
+    //   - endDate: string (required, ISO 8601) - End date
+    //   - isActive: bool (required) - Active status
+    //   - uid: string (required) - Owner's user ID
+    //
+    // Collection: subjects
+    // Document ID: subjectId
+    // Fields:
+    //   - id: string (required) - Unique identifier
+    //   - semesterId: string (required) - Reference to semester
+    //   - name: string (required, 1-100 chars) - Subject name
+    //   - dailyGoalMinutes: number (required, positive) - Daily goal
+    //   - isArchived: bool (required) - Archived status
+    //   - color: string (required, hex color) - Subject color
+    //   - uid: string (required) - Owner's user ID
+    //
+    // Collection: locations
+    // Document ID: locationId
+    // Fields:
+    //   - id: string (required) - Unique identifier
+    //   - name: string (required, 1-100 chars) - Location name
+    //   - uid: string (required) - Owner's user ID
+    //
+    // Collection: sessions
+    // Document ID: sessionId
+    // Fields:
+    //   - id: string (required) - Unique identifier
+    //   - subjectId: string (required) - Reference to subject
+    //   - locationId: string (required) - Reference to location
+    //   - startTime: string (required, ISO 8601) - Start time
+    //   - endTime: string (required, ISO 8601) - End time
+    //   - durationSeconds: number (required, positive) - Duration
+    //   - interruptions: number (required, non-negative) - Interruptions
+    //   - dateLogged: string (required, ISO 8601 date) - Date logged
+    //   - uid: string (required) - Owner's user ID
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "2004garymei@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && (request.auth.uid == resource.data.uid || isAdmin());
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}.*");
+    }
+
+    function isValidDateTimeString(dateTimeStr) {
+      return dateTimeStr is string && dateTimeStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*");
+    }
+
+    function isValidColor(color) {
+      return color is string && color.matches("^#[0-9a-fA-F]{6}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidSemester(data) {
+      return hasRequiredFields(['id', 'name', 'startDate', 'endDate', 'isActive', 'uid']) &&
+             hasOnlyAllowedFields(['id', 'name', 'startDate', 'endDate', 'isActive', 'uid']) &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             isValidDateString(data.startDate) &&
+             isValidDateString(data.endDate) &&
+             data.isActive is bool &&
+             data.uid is string;
+    }
+
+    function isValidSubject(data) {
+      return hasRequiredFields(['id', 'semesterId', 'name', 'dailyGoalMinutes', 'isArchived', 'color', 'uid']) &&
+             hasOnlyAllowedFields(['id', 'semesterId', 'name', 'dailyGoalMinutes', 'isArchived', 'color', 'uid']) &&
+             data.id is string &&
+             data.semesterId is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.dailyGoalMinutes is number && data.dailyGoalMinutes >= 0 &&
+             data.isArchived is bool &&
+             isValidColor(data.color) &&
+             data.uid is string;
+    }
+
+    function isValidLocation(data) {
+      return hasRequiredFields(['id', 'name', 'uid']) &&
+             hasOnlyAllowedFields(['id', 'name', 'uid']) &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.uid is string;
+    }
+
+    function isValidSession(data) {
+      return hasRequiredFields(['id', 'subjectId', 'locationId', 'startTime', 'endTime', 'durationSeconds', 'interruptions', 'dateLogged', 'uid']) &&
+             hasOnlyAllowedFields(['id', 'subjectId', 'locationId', 'startTime', 'endTime', 'durationSeconds', 'interruptions', 'dateLogged', 'uid']) &&
+             data.id is string &&
+             data.subjectId is string &&
+             data.locationId is string &&
+             isValidDateTimeString(data.startTime) &&
+             isValidDateTimeString(data.endTime) &&
+             data.durationSeconds is number && data.durationSeconds >= 0 &&
+             data.interruptions is number && data.interruptions >= 0 &&
+             isValidDateString(data.dateLogged) &&
+             data.uid is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /semesters/{semesterId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidSemester(request.resource.data) && request.resource.data.uid == request.auth.uid;
+      allow update: if isDocOwner() && isValidSemester(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner();
+    }
+
+    match /subjects/{subjectId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidSubject(request.resource.data) && request.resource.data.uid == request.auth.uid;
+      allow update: if isDocOwner() && isValidSubject(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner();
+    }
+
+    match /locations/{locationId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidLocation(request.resource.data) && request.resource.data.uid == request.auth.uid;
+      allow update: if isDocOwner() && isValidLocation(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner();
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidSession(request.resource.data) && request.resource.data.uid == request.auth.uid;
+      allow update: if isDocOwner() && isValidSession(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && hasOnlyAllowedFields(['uid', 'email', 'name', 'role']) && request.resource.data.role == 'user';
+      allow update: if isOwner(userId) && hasOnlyAllowedFields(['uid', 'email', 'name', 'role']) && request.resource.data.role == resource.data.role;
+    }
+  }
+}
