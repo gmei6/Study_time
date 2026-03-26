@@ -14,6 +14,7 @@ export interface Subject {
   dailyGoalMinutes: number;
   isArchived: boolean;
   color: string;
+  order: number;
   uid: string;
 }
 

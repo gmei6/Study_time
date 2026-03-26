@@ -1,36 +1,100 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Subject, StudySession } from '../types';
+import { Subject, StudySession, Semester } from '../types';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   AreaChart, Area 
 } from 'recharts';
-import { format, subDays, startOfDay, eachDayOfInterval, isSameDay, startOfWeek, eachWeekOfInterval, isSameWeek } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, eachDayOfInterval, isSameDay, startOfWeek, eachWeekOfInterval, isSameWeek, parseISO, min, max, isWithinInterval } from 'date-fns';
 
 interface VisualizationsProps {
   subjects: Subject[];
   sessions: StudySession[];
+  semesters: Semester[];
 }
 
-export default function Visualizations({ subjects, sessions }: VisualizationsProps) {
-  const [granularity, setGranularity] = useState<'day' | 'week'>('day');
+const CustomTooltip = ({ active, payload, label, formatDuration, subjects }: any) => {
+  if (active && payload && payload.length) {
+    const total = payload.reduce((acc: number, entry: any) => acc + (entry.value || 0), 0);
+    
+    return (
+      <div className="bg-[#121212] rounded-[24px] border border-white/10 p-4 shadow-2xl backdrop-blur-md">
+        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3">{label}</p>
+        <div className="space-y-2 mb-3">
+          {[...payload].reverse().map((entry: any, index: number) => {
+            const subject = subjects.find((s: any) => s.name === entry.name);
+            return (
+              <div key={index} className="flex items-center justify-between gap-8">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color || subject?.color }} />
+                  <span className="text-sm text-gray-300">{entry.name}</span>
+                </div>
+                <span className="text-sm font-bold text-white">{formatDuration(entry.value)}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="pt-3 border-t border-white/5 flex justify-between items-center">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Total</span>
+          <span className="text-sm font-bold text-emerald-500">{formatDuration(total)}</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+export default function Visualizations({ subjects, sessions, semesters }: VisualizationsProps) {
+  const [granularity, setGranularity] = useState<'day' | 'week' | 'month'>('day');
+  const [range, setRange] = useState<'7d' | '14d' | '30d' | '90d' | 'all' | 'semester'>('7d');
+  const [chartType, setChartType] = useState<'area' | 'bar'>('bar');
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
+
+  const formatDuration = (minutes: number) => {
+    if (minutes === 0) return '0m';
+    const h = Math.floor(minutes / 60);
+    const m = Math.round(minutes % 60);
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  };
 
   const data = useMemo(() => {
     const now = new Date();
+    let start: Date;
+    let end: Date = now;
+
+    if (range === 'all' && sessions.length > 0) {
+      const dates = sessions.map(s => parseISO(s.dateLogged));
+      start = min(dates);
+      end = max(dates);
+    } else if (range === 'semester') {
+      const activeSem = semesters.find(s => s.isActive);
+      if (activeSem) {
+        start = parseISO(activeSem.startDate);
+        end = parseISO(activeSem.endDate);
+      } else {
+        start = subDays(now, 6);
+      }
+    } else {
+      const days = range === '7d' ? 6 : range === '14d' ? 13 : range === '30d' ? 29 : 89;
+      start = subDays(now, days);
+    }
+
     const interval = granularity === 'day' 
-      ? eachDayOfInterval({ start: subDays(now, 13), end: now })
-      : eachWeekOfInterval({ start: subDays(now, 60), end: now });
+      ? eachDayOfInterval({ start, end })
+      : eachWeekOfInterval({ start, end });
 
     return interval.map(date => {
       const label = granularity === 'day' ? format(date, 'MMM dd') : `Week of ${format(date, 'MMM dd')}`;
       const row: any = { name: label };
       
-      subjects.forEach(subject => {
+      [...subjects]
+        .sort((a, b) => (a.order || 0) - (b.order || 0))
+        .forEach(subject => {
         if (selectedSubjectIds.length > 0 && !selectedSubjectIds.includes(subject.id)) return;
         
         const subjectSessions = sessions.filter(s => {
-          const sessionDate = new Date(s.dateLogged);
+          const sessionDate = parseISO(s.dateLogged);
           return granularity === 'day' 
             ? isSameDay(sessionDate, date)
             : isSameWeek(sessionDate, date);
@@ -38,14 +102,44 @@ export default function Visualizations({ subjects, sessions }: VisualizationsPro
 
         const minutes = subjectSessions
           .filter(s => s.subjectId === subject.id)
-          .reduce((acc, s) => acc + s.durationSeconds, 0) / 60;
+          .reduce((acc, s) => acc + (s.durationSeconds || 0), 0) / 60;
         
-        row[subject.name] = Math.round(minutes);
+        row[subject.name] = Math.round(minutes) || 0;
       });
 
       return row;
     });
-  }, [granularity, subjects, sessions, selectedSubjectIds]);
+  }, [granularity, range, subjects, sessions, selectedSubjectIds]);
+
+  const totalMinutes = useMemo(() => {
+    const now = new Date();
+    let start: Date;
+    const end: Date = now;
+
+    if (range === 'all' && sessions.length > 0) {
+      const dates = sessions.map(s => parseISO(s.dateLogged));
+      start = min(dates);
+    } else if (range === 'semester') {
+      const activeSem = semesters.find(s => s.isActive);
+      if (activeSem) {
+        start = parseISO(activeSem.startDate);
+      } else {
+        start = subDays(now, 6);
+      }
+    } else {
+      const days = range === '7d' ? 6 : range === '14d' ? 13 : range === '30d' ? 29 : 89;
+      start = subDays(now, days);
+    }
+
+    return sessions
+      .filter(s => {
+        const sessionDate = parseISO(s.dateLogged);
+        const isInRange = isWithinInterval(sessionDate, { start: startOfDay(start), end: endOfDay(end) });
+        const isSelectedSubject = selectedSubjectIds.length === 0 || selectedSubjectIds.includes(s.subjectId);
+        return isInRange && isSelectedSubject;
+      })
+      .reduce((acc, s) => acc + s.durationSeconds, 0) / 60;
+  }, [range, sessions, selectedSubjectIds]);
 
   const toggleSubject = (id: string) => {
     setSelectedSubjectIds(prev => 
@@ -56,26 +150,63 @@ export default function Visualizations({ subjects, sessions }: VisualizationsPro
   return (
     <div className="midnight-panel mb-12">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <h3 className="text-2xl font-bold text-white">Study Trends</h3>
+        <div className="flex flex-col">
+          <h3 className="text-2xl font-bold text-white">Study Trends</h3>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-gray-500 text-xs font-bold uppercase tracking-widest">Total:</span>
+            <span className="text-emerald-500 font-mono font-bold">{formatDuration(totalMinutes)}</span>
+          </div>
+        </div>
         
-        <div className="flex gap-2 bg-[#050505] p-1 rounded-[24px]">
-          <button 
-            onClick={() => setGranularity('day')}
-            className={`px-6 py-2 rounded-[20px] text-sm font-semibold transition-all ${granularity === 'day' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
-          >
-            Daily
-          </button>
-          <button 
-            onClick={() => setGranularity('week')}
-            className={`px-6 py-2 rounded-[20px] text-sm font-semibold transition-all ${granularity === 'week' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
-          >
-            Weekly
-          </button>
+        <div className="flex flex-wrap gap-4">
+          <div className="flex gap-2 bg-[#050505] p-1 rounded-[24px]">
+            <button 
+              onClick={() => setChartType('area')}
+              className={`px-4 py-2 rounded-[20px] text-xs font-semibold transition-all ${chartType === 'area' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+            >
+              Area
+            </button>
+            <button 
+              onClick={() => setChartType('bar')}
+              className={`px-4 py-2 rounded-[20px] text-xs font-semibold transition-all ${chartType === 'bar' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+            >
+              Bar
+            </button>
+          </div>
+
+          <div className="flex gap-2 bg-[#050505] p-1 rounded-[24px]">
+            {(['7d', '14d', '30d', '90d', 'semester', 'all'] as const).map((r) => (
+              <button 
+                key={r}
+                onClick={() => setRange(r)}
+                className={`px-4 py-2 rounded-[20px] text-xs font-semibold transition-all ${range === r ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+              >
+                {r === 'all' ? 'All Time' : r === 'semester' ? 'Semester' : r}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2 bg-[#050505] p-1 rounded-[24px]">
+            <button 
+              onClick={() => setGranularity('day')}
+              className={`px-6 py-2 rounded-[20px] text-sm font-semibold transition-all ${granularity === 'day' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+            >
+              Daily
+            </button>
+            <button 
+              onClick={() => setGranularity('week')}
+              className={`px-6 py-2 rounded-[20px] text-sm font-semibold transition-all ${granularity === 'week' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+            >
+              Weekly
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-8">
-        {subjects.map(subject => (
+        {subjects
+          .sort((a, b) => (a.order || 0) - (b.order || 0))
+          .map(subject => (
           <button 
             key={subject.id}
             onClick={() => toggleSubject(subject.id)}
@@ -104,56 +235,99 @@ export default function Visualizations({ subjects, sessions }: VisualizationsPro
 
       <div className="h-[400px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data}>
-            <defs>
-              {subjects.map(s => (
-                <linearGradient key={s.id} id={`color${s.id}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={s.color} stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor={s.color} stopOpacity={0}/>
-                </linearGradient>
+          {chartType === 'area' ? (
+            <AreaChart data={data}>
+              <defs>
+                {subjects.map(s => (
+                  <linearGradient key={s.id} id={`color${s.id}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={s.color} stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor={s.color} stopOpacity={0}/>
+                  </linearGradient>
+                ))}
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1A1A1A" vertical={false} />
+              <XAxis 
+                dataKey="name" 
+                stroke="#555" 
+                fontSize={12} 
+                tickLine={false} 
+                axisLine={false}
+                dy={10}
+              />
+              <YAxis 
+                stroke="#555" 
+                fontSize={12} 
+                tickLine={false} 
+                axisLine={false}
+                tickFormatter={(val) => val >= 60 ? `${Math.floor(val/60)}h` : `${val}m`}
+              />
+              <Tooltip 
+                content={
+                  <CustomTooltip 
+                    formatDuration={formatDuration} 
+                    subjects={subjects} 
+                  />
+                }
+              />
+              {[...subjects]
+                .sort((a, b) => (b.order || 0) - (a.order || 0))
+                .map(subject => (
+                (selectedSubjectIds.length === 0 || selectedSubjectIds.includes(subject.id)) && (
+                  <Area 
+                    key={subject.id}
+                    type="monotone" 
+                    dataKey={subject.name} 
+                    stackId="1"
+                    stroke={subject.color} 
+                    fillOpacity={1} 
+                    fill={`url(#color${subject.id})`} 
+                    strokeWidth={3}
+                  />
+                )
               ))}
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1A1A1A" vertical={false} />
-            <XAxis 
-              dataKey="name" 
-              stroke="#555" 
-              fontSize={12} 
-              tickLine={false} 
-              axisLine={false}
-              dy={10}
-            />
-            <YAxis 
-              stroke="#555" 
-              fontSize={12} 
-              tickLine={false} 
-              axisLine={false}
-              tickFormatter={(val) => `${val}m`}
-            />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: '#121212', 
-                borderRadius: '24px', 
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: '#E0E0E0',
-                padding: '16px'
-              }}
-              itemStyle={{ color: '#E0E0E0' }}
-            />
-            {subjects.map(subject => (
-              (selectedSubjectIds.length === 0 || selectedSubjectIds.includes(subject.id)) && (
-                <Area 
-                  key={subject.id}
-                  type="monotone" 
-                  dataKey={subject.name} 
-                  stackId="1"
-                  stroke={subject.color} 
-                  fillOpacity={1} 
-                  fill={`url(#color${subject.id})`} 
-                  strokeWidth={3}
-                />
-              )
-            ))}
-          </AreaChart>
+            </AreaChart>
+          ) : (
+            <BarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1A1A1A" vertical={false} />
+              <XAxis 
+                dataKey="name" 
+                stroke="#555" 
+                fontSize={12} 
+                tickLine={false} 
+                axisLine={false}
+                dy={10}
+              />
+              <YAxis 
+                stroke="#555" 
+                fontSize={12} 
+                tickLine={false} 
+                axisLine={false}
+                tickFormatter={(val) => val >= 60 ? `${Math.floor(val/60)}h` : `${val}m`}
+              />
+              <Tooltip 
+                content={
+                  <CustomTooltip 
+                    formatDuration={formatDuration} 
+                    subjects={subjects} 
+                  />
+                }
+                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+              />
+              {[...subjects]
+                .sort((a, b) => (b.order || 0) - (a.order || 0))
+                .map(subject => (
+                (selectedSubjectIds.length === 0 || selectedSubjectIds.includes(subject.id)) && (
+                  <Bar 
+                    key={subject.id}
+                    dataKey={subject.name} 
+                    stackId="1"
+                    fill={subject.color} 
+                    radius={[0, 0, 0, 0]}
+                  />
+                )
+              ))}
+            </BarChart>
+          )}
         </ResponsiveContainer>
       </div>
     </div>

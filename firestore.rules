@@ -25,6 +25,7 @@ service cloud.firestore {
     //   - dailyGoalMinutes: number (required, positive) - Daily goal
     //   - isArchived: bool (required) - Archived status
     //   - color: string (required, hex color) - Subject color
+    //   - order: number (required) - Display order
     //   - uid: string (required) - Owner's user ID
     //
     // Collection: locations
@@ -119,14 +120,15 @@ service cloud.firestore {
     }
 
     function isValidSubject(data) {
-      return hasRequiredFields(['id', 'semesterId', 'name', 'dailyGoalMinutes', 'isArchived', 'color', 'uid']) &&
-             hasOnlyAllowedFields(['id', 'semesterId', 'name', 'dailyGoalMinutes', 'isArchived', 'color', 'uid']) &&
+      return hasRequiredFields(['id', 'semesterId', 'name', 'dailyGoalMinutes', 'isArchived', 'color', 'order', 'uid']) &&
+             hasOnlyAllowedFields(['id', 'semesterId', 'name', 'dailyGoalMinutes', 'isArchived', 'color', 'order', 'uid']) &&
              data.id is string &&
              data.semesterId is string &&
              data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
              data.dailyGoalMinutes is number && data.dailyGoalMinutes >= 0 &&
              data.isArchived is bool &&
              isValidColor(data.color) &&
+             data.order is number &&
              data.uid is string;
     }
 
