@@ -2,8 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Subject, StudySession, Semester, ShortTermGoal } from '../types';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-  AreaChart, Area 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { format, subDays, startOfDay, endOfDay, eachDayOfInterval, isSameDay, startOfWeek, eachWeekOfInterval, isSameWeek, parseISO, min, max, isWithinInterval, eachMonthOfInterval, isSameMonth } from 'date-fns';
 
@@ -48,7 +47,6 @@ const CustomTooltip = ({ active, payload, label, formatDuration, subjects }: any
 export default function Visualizations({ subjects, sessions, semesters, shortTermGoals }: VisualizationsProps) {
   const [granularity, setGranularity] = useState<'day' | 'week' | 'month'>('day');
   const [range, setRange] = useState<string>('7d');
-  const [chartType, setChartType] = useState<'area' | 'bar'>('bar');
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
 
   const formatDuration = (minutes: number) => {
@@ -185,21 +183,6 @@ export default function Visualizations({ subjects, sessions, semesters, shortTer
         </div>
         
         <div className="flex flex-wrap gap-4">
-          <div className="flex gap-2 bg-[#050505] p-1 rounded-[24px]">
-            <button 
-              onClick={() => setChartType('area')}
-              className={`px-4 py-2 rounded-[20px] text-xs font-semibold transition-all ${chartType === 'area' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
-            >
-              Area
-            </button>
-            <button 
-              onClick={() => setChartType('bar')}
-              className={`px-4 py-2 rounded-[20px] text-xs font-semibold transition-all ${chartType === 'bar' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
-            >
-              Bar
-            </button>
-          </div>
-
           <div className="flex gap-2 bg-[#050505] p-1 rounded-[24px] overflow-x-auto no-scrollbar max-w-[400px]">
             {(['7d', '14d', '30d', '90d', 'semester', 'all'] as const).map((r) => (
               <button 
@@ -276,99 +259,46 @@ export default function Visualizations({ subjects, sessions, semesters, shortTer
 
       <div className="h-[400px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          {chartType === 'area' ? (
-            <AreaChart data={data}>
-              <defs>
-                {subjects.map(s => (
-                  <linearGradient key={s.id} id={`color${s.id}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={s.color} stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor={s.color} stopOpacity={0}/>
-                  </linearGradient>
-                ))}
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1A1A1A" vertical={false} />
-              <XAxis 
-                dataKey="name" 
-                stroke="#555" 
-                fontSize={12} 
-                tickLine={false} 
-                axisLine={false}
-                dy={10}
-              />
-              <YAxis 
-                stroke="#555" 
-                fontSize={12} 
-                tickLine={false} 
-                axisLine={false}
-                tickFormatter={(val) => val >= 60 ? `${Math.floor(val/60)}h` : `${val}m`}
-              />
-              <Tooltip 
-                content={
-                  <CustomTooltip 
-                    formatDuration={formatDuration} 
-                    subjects={subjects} 
-                  />
-                }
-              />
-              {[...subjects]
-                .sort((a, b) => (b.order || 0) - (a.order || 0))
-                .map(subject => (
-                (selectedSubjectIds.length === 0 || selectedSubjectIds.includes(subject.id)) && (
-                  <Area 
-                    key={subject.id}
-                    type="monotone" 
-                    dataKey={subject.name} 
-                    stackId="1"
-                    stroke={subject.color} 
-                    fillOpacity={1} 
-                    fill={`url(#color${subject.id})`} 
-                    strokeWidth={3}
-                  />
-                )
-              ))}
-            </AreaChart>
-          ) : (
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1A1A1A" vertical={false} />
-              <XAxis 
-                dataKey="name" 
-                stroke="#555" 
-                fontSize={12} 
-                tickLine={false} 
-                axisLine={false}
-                dy={10}
-              />
-              <YAxis 
-                stroke="#555" 
-                fontSize={12} 
-                tickLine={false} 
-                axisLine={false}
-                tickFormatter={(val) => val >= 60 ? `${Math.floor(val/60)}h` : `${val}m`}
-              />
-              <Tooltip 
-                content={
-                  <CustomTooltip 
-                    formatDuration={formatDuration} 
-                    subjects={subjects} 
-                  />
-                }
-                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-              />
-              {[...subjects]
-                .sort((a, b) => (b.order || 0) - (a.order || 0))
-                .map(subject => (
-                (selectedSubjectIds.length === 0 || selectedSubjectIds.includes(subject.id)) && (
-                  <Bar 
-                    key={subject.id}
-                    dataKey={subject.name} 
-                    stackId="1"
-                    fill={subject.color} 
-                    radius={[0, 0, 0, 0]}
-                  />
-                )
-              ))}
-            </BarChart>
-          )}
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1A1A1A" vertical={false} />
+            <XAxis 
+              dataKey="name" 
+              stroke="#555" 
+              fontSize={12} 
+              tickLine={false} 
+              axisLine={false}
+              dy={10}
+            />
+            <YAxis 
+              stroke="#555" 
+              fontSize={12} 
+              tickLine={false} 
+              axisLine={false}
+              tickFormatter={(val) => val >= 60 ? `${Math.floor(val/60)}h` : `${val}m`}
+            />
+            <Tooltip 
+              content={
+                <CustomTooltip 
+                  formatDuration={formatDuration} 
+                  subjects={subjects} 
+                />
+              }
+              cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+            />
+            {[...subjects]
+              .sort((a, b) => (b.order || 0) - (a.order || 0))
+              .map(subject => (
+              (selectedSubjectIds.length === 0 || selectedSubjectIds.includes(subject.id)) && (
+                <Bar 
+                  key={subject.id}
+                  dataKey={subject.name} 
+                  stackId="1"
+                  fill={subject.color} 
+                  radius={[0, 0, 0, 0]}
+                />
+              )
+            ))}
+          </BarChart>
         </ResponsiveContainer>
       </div>
     </div>

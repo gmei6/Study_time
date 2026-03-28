@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Subject, ShortTermGoal } from '../types';
-import { Target, Calendar, Trash2, Plus, X, Check } from 'lucide-react';
+import { Target, Calendar, Trash2, Plus, X, Check, Pencil } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 interface ShortTermGoalsProps {
@@ -13,25 +13,55 @@ interface ShortTermGoalsProps {
 }
 
 export default function ShortTermGoals({ subjects, goals, onAddGoal, onUpdateGoal, onDeleteGoal }: ShortTermGoalsProps) {
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<ShortTermGoal | null>(null);
   const [newName, setNewName] = useState('');
   const [newStartDate, setNewStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [newEndDate, setNewEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
 
-  const handleAdd = () => {
+  const handleOpenAdd = () => {
+    setEditingGoal(null);
+    setNewName('');
+    setNewStartDate(format(new Date(), 'yyyy-MM-dd'));
+    setNewEndDate(format(new Date(), 'yyyy-MM-dd'));
+    setSelectedSubjectIds([]);
+    setShowModal(true);
+  };
+
+  const handleOpenEdit = (goal: ShortTermGoal) => {
+    setEditingGoal(goal);
+    setNewName(goal.name);
+    setNewStartDate(goal.startDate);
+    setNewEndDate(goal.endDate);
+    setSelectedSubjectIds(goal.subjectIds);
+    setShowModal(true);
+  };
+
+  const handleSave = () => {
     if (!newName || selectedSubjectIds.length === 0) return;
-    const goal: ShortTermGoal = {
-      id: crypto.randomUUID(),
-      name: newName,
-      subjectIds: selectedSubjectIds,
-      startDate: newStartDate,
-      endDate: newEndDate,
-      isActive: true,
-      uid: '', // Set by App.tsx
-    };
-    onAddGoal(goal);
-    setShowAddModal(false);
+    
+    if (editingGoal) {
+      onUpdateGoal(editingGoal.id, {
+        name: newName,
+        subjectIds: selectedSubjectIds,
+        startDate: newStartDate,
+        endDate: newEndDate,
+      });
+    } else {
+      const goal: ShortTermGoal = {
+        id: crypto.randomUUID(),
+        name: newName,
+        subjectIds: selectedSubjectIds,
+        startDate: newStartDate,
+        endDate: newEndDate,
+        isActive: true,
+        uid: '', // Set by App.tsx
+      };
+      onAddGoal(goal);
+    }
+    
+    setShowModal(false);
     setNewName('');
     setSelectedSubjectIds([]);
   };
@@ -70,6 +100,13 @@ export default function ShortTermGoals({ subjects, goals, onAddGoal, onUpdateGoa
             
             <div className="flex items-center gap-2">
               <button 
+                onClick={() => handleOpenEdit(goal)}
+                className="p-2 bg-white/5 text-gray-500 hover:text-white rounded-xl transition-all"
+                title="Edit Goal"
+              >
+                <Pencil size={18} />
+              </button>
+              <button 
                 onClick={() => onUpdateGoal(goal.id, { isActive: !goal.isActive })}
                 className={`p-2 rounded-xl transition-all ${goal.isActive ? 'bg-emerald-500 text-black' : 'bg-white/5 text-gray-500 hover:text-white'}`}
                 title={goal.isActive ? "Deactivate" : "Activate"}
@@ -88,7 +125,7 @@ export default function ShortTermGoals({ subjects, goals, onAddGoal, onUpdateGoa
         ))}
 
         <button 
-          onClick={() => setShowAddModal(true)}
+          onClick={handleOpenAdd}
           className="midnight-panel border-2 border-dashed border-white/5 hover:border-white/20 flex items-center justify-center gap-2 text-gray-500 hover:text-white transition-all py-8"
         >
           <Plus size={20} />
@@ -97,7 +134,7 @@ export default function ShortTermGoals({ subjects, goals, onAddGoal, onUpdateGoa
       </div>
 
       <AnimatePresence>
-        {showAddModal && (
+        {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
@@ -106,8 +143,8 @@ export default function ShortTermGoals({ subjects, goals, onAddGoal, onUpdateGoa
               className="midnight-panel max-w-lg w-full p-8 space-y-8"
             >
               <div className="flex justify-between items-center">
-                <h3 className="text-2xl font-bold text-white">New Goal</h3>
-                <button onClick={() => setShowAddModal(false)} className="text-gray-500 hover:text-white">
+                <h3 className="text-2xl font-bold text-white">{editingGoal ? 'Edit Goal' : 'New Goal'}</h3>
+                <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-white">
                   <X size={24} />
                 </button>
               </div>
@@ -169,11 +206,11 @@ export default function ShortTermGoals({ subjects, goals, onAddGoal, onUpdateGoa
                 </div>
 
                 <button 
-                  onClick={handleAdd}
+                  onClick={handleSave}
                   disabled={!newName || selectedSubjectIds.length === 0}
                   className="midnight-button-primary w-full py-4 text-lg disabled:opacity-50"
                 >
-                  Create Goal
+                  {editingGoal ? 'Update Goal' : 'Create Goal'}
                 </button>
               </div>
             </motion.div>
