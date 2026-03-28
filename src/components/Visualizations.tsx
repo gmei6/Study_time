@@ -84,7 +84,7 @@ export default function Visualizations({ subjects, sessions, semesters, shortTer
         start = subDays(now, 6);
       }
     } else {
-      const days = range === '7d' ? 6 : range === '14d' ? 13 : range === '30d' ? 29 : 89;
+      const days = range === '7d' ? 6 : 29;
       start = subDays(now, days);
     }
 
@@ -151,7 +151,7 @@ export default function Visualizations({ subjects, sessions, semesters, shortTer
         start = subDays(now, 6);
       }
     } else {
-      const days = range === '7d' ? 6 : range === '14d' ? 13 : range === '30d' ? 29 : 89;
+      const days = range === '7d' ? 6 : 29;
       start = subDays(now, days);
     }
 
@@ -184,7 +184,7 @@ export default function Visualizations({ subjects, sessions, semesters, shortTer
         
         <div className="flex flex-wrap gap-4">
           <div className="flex gap-2 bg-[#050505] p-1 rounded-[24px] overflow-x-auto no-scrollbar max-w-[400px]">
-            {(['7d', '14d', '30d', '90d', 'semester', 'all'] as const).map((r) => (
+            {(['7d', '30d', 'semester', 'all'] as const).map((r) => (
               <button 
                 key={r}
                 onClick={() => setRange(r)}
