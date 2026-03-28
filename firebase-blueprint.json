@@ -56,6 +56,21 @@
         "uid": { "type": "string", "description": "Owner's user ID" }
       },
       "required": ["id", "subjectId", "locationId", "startTime", "endTime", "durationSeconds", "interruptions", "dateLogged", "uid"]
+    },
+    "ShortTermGoal": {
+      "title": "ShortTermGoal",
+      "description": "A short-term study goal with a date range.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "name": { "type": "string", "description": "Goal name" },
+        "subjectIds": { "type": "array", "items": { "type": "string" }, "description": "List of subject IDs" },
+        "startDate": { "type": "string", "format": "date", "description": "Start date of the goal" },
+        "endDate": { "type": "string", "format": "date", "description": "End date of the goal" },
+        "isActive": { "type": "boolean", "description": "Whether the goal is active" },
+        "uid": { "type": "string", "description": "Owner's user ID" }
+      },
+      "required": ["id", "name", "subjectIds", "startDate", "endDate", "isActive", "uid"]
     }
   },
   "firestore": {
@@ -74,6 +89,10 @@
     "/sessions/{sessionId}": {
       "schema": "StudySession",
       "description": "User study sessions"
+    },
+    "/shortTermGoals/{goalId}": {
+      "schema": "ShortTermGoal",
+      "description": "User short-term goals"
     }
   }
 }

@@ -41,3 +41,13 @@ export interface DailyStats {
   totalMinutes: number;
   bySubject: Record<string, number>;
 }
+
+export interface ShortTermGoal {
+  id: string;
+  name: string;
+  subjectIds: string[];
+  startDate: string; // ISO string
+  endDate: string; // ISO string
+  isActive: boolean;
+  uid: string;
+}

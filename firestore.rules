@@ -48,6 +48,17 @@ service cloud.firestore {
     //   - dateLogged: string (required, ISO 8601 date) - Date logged
     //   - uid: string (required) - Owner's user ID
     //
+    // Collection: shortTermGoals
+    // Document ID: goalId
+    // Fields:
+    //   - id: string (required) - Unique identifier
+    //   - name: string (required, 1-100 chars) - Goal name
+    //   - subjectIds: list (required) - List of subject IDs
+    //   - startDate: string (required, ISO 8601 date) - Start date
+    //   - endDate: string (required, ISO 8601 date) - End date
+    //   - isActive: bool (required) - Active status
+    //   - uid: string (required) - Owner's user ID
+    //
     // ===============================================================
 
     // ===============================================================
@@ -154,6 +165,18 @@ service cloud.firestore {
              data.uid is string;
     }
 
+    function isValidShortTermGoal(data) {
+      return hasRequiredFields(['id', 'name', 'subjectIds', 'startDate', 'endDate', 'isActive', 'uid']) &&
+             hasOnlyAllowedFields(['id', 'name', 'subjectIds', 'startDate', 'endDate', 'isActive', 'uid']) &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.subjectIds is list &&
+             isValidDateString(data.startDate) &&
+             isValidDateString(data.endDate) &&
+             data.isActive is bool &&
+             data.uid is string;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -183,6 +206,13 @@ service cloud.firestore {
       allow read: if isDocOwner();
       allow create: if isAuthenticated() && isValidSession(request.resource.data) && request.resource.data.uid == request.auth.uid;
       allow update: if isDocOwner() && isValidSession(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner();
+    }
+
+    match /shortTermGoals/{goalId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidShortTermGoal(request.resource.data) && request.resource.data.uid == request.auth.uid;
+      allow update: if isDocOwner() && isValidShortTermGoal(request.resource.data) && uidNotModified();
       allow delete: if isDocOwner();
     }
 

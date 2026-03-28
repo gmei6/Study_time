@@ -1,16 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Subject, StudySession, Semester } from '../types';
+import { Subject, StudySession, Semester, ShortTermGoal } from '../types';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   AreaChart, Area 
 } from 'recharts';
-import { format, subDays, startOfDay, endOfDay, eachDayOfInterval, isSameDay, startOfWeek, eachWeekOfInterval, isSameWeek, parseISO, min, max, isWithinInterval } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, eachDayOfInterval, isSameDay, startOfWeek, eachWeekOfInterval, isSameWeek, parseISO, min, max, isWithinInterval, eachMonthOfInterval, isSameMonth } from 'date-fns';
 
 interface VisualizationsProps {
   subjects: Subject[];
   sessions: StudySession[];
   semesters: Semester[];
+  shortTermGoals: ShortTermGoal[];
 }
 
 const CustomTooltip = ({ active, payload, label, formatDuration, subjects }: any) => {
@@ -44,9 +45,9 @@ const CustomTooltip = ({ active, payload, label, formatDuration, subjects }: any
   return null;
 };
 
-export default function Visualizations({ subjects, sessions, semesters }: VisualizationsProps) {
+export default function Visualizations({ subjects, sessions, semesters, shortTermGoals }: VisualizationsProps) {
   const [granularity, setGranularity] = useState<'day' | 'week' | 'month'>('day');
-  const [range, setRange] = useState<'7d' | '14d' | '30d' | '90d' | 'all' | 'semester'>('7d');
+  const [range, setRange] = useState<string>('7d');
   const [chartType, setChartType] = useState<'area' | 'bar'>('bar');
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
 
@@ -75,6 +76,15 @@ export default function Visualizations({ subjects, sessions, semesters }: Visual
       } else {
         start = subDays(now, 6);
       }
+    } else if (range.startsWith('goal-')) {
+      const goalId = range.replace('goal-', '');
+      const goal = shortTermGoals.find(g => g.id === goalId);
+      if (goal) {
+        start = parseISO(goal.startDate);
+        end = parseISO(goal.endDate);
+      } else {
+        start = subDays(now, 6);
+      }
     } else {
       const days = range === '7d' ? 6 : range === '14d' ? 13 : range === '30d' ? 29 : 89;
       start = subDays(now, days);
@@ -82,10 +92,16 @@ export default function Visualizations({ subjects, sessions, semesters }: Visual
 
     const interval = granularity === 'day' 
       ? eachDayOfInterval({ start, end })
-      : eachWeekOfInterval({ start, end });
+      : granularity === 'week'
+        ? eachWeekOfInterval({ start, end })
+        : eachMonthOfInterval({ start, end });
 
     return interval.map(date => {
-      const label = granularity === 'day' ? format(date, 'MMM dd') : `Week of ${format(date, 'MMM dd')}`;
+      const label = granularity === 'day' 
+        ? format(date, 'MMM dd') 
+        : granularity === 'week'
+          ? `Week of ${format(date, 'MMM dd')}`
+          : format(date, 'MMM yyyy');
       const row: any = { name: label };
       
       [...subjects]
@@ -97,7 +113,9 @@ export default function Visualizations({ subjects, sessions, semesters }: Visual
           const sessionDate = parseISO(s.dateLogged);
           return granularity === 'day' 
             ? isSameDay(sessionDate, date)
-            : isSameWeek(sessionDate, date);
+            : granularity === 'week'
+              ? isSameWeek(sessionDate, date)
+              : isSameMonth(sessionDate, date);
         });
 
         const minutes = subjectSessions
@@ -123,6 +141,14 @@ export default function Visualizations({ subjects, sessions, semesters }: Visual
       const activeSem = semesters.find(s => s.isActive);
       if (activeSem) {
         start = parseISO(activeSem.startDate);
+      } else {
+        start = subDays(now, 6);
+      }
+    } else if (range.startsWith('goal-')) {
+      const goalId = range.replace('goal-', '');
+      const goal = shortTermGoals.find(g => g.id === goalId);
+      if (goal) {
+        start = parseISO(goal.startDate);
       } else {
         start = subDays(now, 6);
       }
@@ -174,14 +200,23 @@ export default function Visualizations({ subjects, sessions, semesters }: Visual
             </button>
           </div>
 
-          <div className="flex gap-2 bg-[#050505] p-1 rounded-[24px]">
+          <div className="flex gap-2 bg-[#050505] p-1 rounded-[24px] overflow-x-auto no-scrollbar max-w-[400px]">
             {(['7d', '14d', '30d', '90d', 'semester', 'all'] as const).map((r) => (
               <button 
                 key={r}
                 onClick={() => setRange(r)}
-                className={`px-4 py-2 rounded-[20px] text-xs font-semibold transition-all ${range === r ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+                className={`px-4 py-2 rounded-[20px] text-xs font-semibold transition-all whitespace-nowrap ${range === r ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
               >
                 {r === 'all' ? 'All Time' : r === 'semester' ? 'Semester' : r}
+              </button>
+            ))}
+            {shortTermGoals.filter(g => g.isActive).map(goal => (
+              <button 
+                key={goal.id}
+                onClick={() => setRange(`goal-${goal.id}`)}
+                className={`px-4 py-2 rounded-[20px] text-xs font-semibold transition-all whitespace-nowrap ${range === `goal-${goal.id}` ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+              >
+                {goal.name}
               </button>
             ))}
           </div>
@@ -198,6 +233,12 @@ export default function Visualizations({ subjects, sessions, semesters }: Visual
               className={`px-6 py-2 rounded-[20px] text-sm font-semibold transition-all ${granularity === 'week' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
             >
               Weekly
+            </button>
+            <button 
+              onClick={() => setGranularity('month')}
+              className={`px-6 py-2 rounded-[20px] text-sm font-semibold transition-all ${granularity === 'month' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+            >
+              Monthly
             </button>
           </div>
         </div>

@@ -9,10 +9,10 @@ import Dashboard from './components/Dashboard';
 import ManualSessionLogger from './components/ManualSessionLogger';
 import Visualizations from './components/Visualizations';
 import StudyDataGrid from './components/StudyDataGrid';
-import Insights from './components/Insights';
 import SemesterManagement from './components/SemesterManagement';
+import ShortTermGoals from './components/ShortTermGoals';
 import ErrorBoundary from './components/ErrorBoundary';
-import { Semester, Subject, Location, StudySession } from './types';
+import { Semester, Subject, Location, StudySession, ShortTermGoal } from './types';
 import { auth, db, signInWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { 
@@ -35,6 +35,7 @@ export default function App() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
+  const [shortTermGoals, setShortTermGoals] = useState<ShortTermGoal[]>([]);
   const [lastBulkImportIds, setLastBulkImportIds] = useState<string[]>(() => {
     const saved = localStorage.getItem('lastBulkImportIds');
     try {
@@ -100,11 +101,17 @@ export default function App() {
       setSessions(snapshot.docs.map(doc => doc.data() as StudySession));
     }, (error) => handleFirestoreError(error, OperationType.GET, 'sessions'));
 
+    const qGoals = query(collection(db, 'shortTermGoals'), where('uid', '==', user.uid));
+    const unsubGoals = onSnapshot(qGoals, (snapshot) => {
+      setShortTermGoals(snapshot.docs.map(doc => doc.data() as ShortTermGoal));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'shortTermGoals'));
+
     return () => {
       unsubSemesters();
       unsubSubjects();
       unsubLocations();
       unsubSessions();
+      unsubGoals();
     };
   }, [isAuthReady, user]);
 
@@ -299,6 +306,36 @@ export default function App() {
     }
   };
 
+  const handleAddShortTermGoal = async (goal: ShortTermGoal) => {
+    if (!user) return;
+    const path = 'shortTermGoals';
+    try {
+      await setDoc(doc(db, path, goal.id), { ...goal, uid: user.uid });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  };
+
+  const handleUpdateShortTermGoal = async (id: string, updates: Partial<ShortTermGoal>) => {
+    if (!user) return;
+    const path = 'shortTermGoals';
+    try {
+      await updateDoc(doc(db, path, id), updates);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  };
+
+  const handleDeleteShortTermGoal = async (id: string) => {
+    if (!user) return;
+    const path = 'shortTermGoals';
+    try {
+      await deleteDoc(doc(db, path, id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, path);
+    }
+  };
+
   const activeSemesterId = semesters.find(sem => sem.isActive)?.id;
   const filteredSubjects = subjects.filter(s => s.semesterId === activeSemesterId);
   const filteredSessions = sessions.filter(s => filteredSubjects.some(sub => sub.id === s.subjectId));
@@ -373,6 +410,7 @@ export default function App() {
                 subjects={filteredSubjects} 
                 sessions={filteredSessions} 
                 semesters={semesters}
+                shortTermGoals={shortTermGoals}
               />
 
               <div className="mt-12">
@@ -386,11 +424,13 @@ export default function App() {
             
             <div className="space-y-12">
               <div>
-                <h3 className="text-gray-500 text-sm font-semibold uppercase tracking-widest mb-6 ml-4">Insights</h3>
-                <Insights 
+                <h3 className="text-gray-500 text-sm font-semibold uppercase tracking-widest mb-6 ml-4">Short-term Goals</h3>
+                <ShortTermGoals 
                   subjects={filteredSubjects} 
-                  locations={locations} 
-                  sessions={filteredSessions} 
+                  goals={shortTermGoals}
+                  onAddGoal={handleAddShortTermGoal}
+                  onUpdateGoal={handleUpdateShortTermGoal}
+                  onDeleteGoal={handleDeleteShortTermGoal}
                 />
               </div>
               
