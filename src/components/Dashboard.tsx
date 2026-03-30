@@ -89,7 +89,7 @@ export default function Dashboard({ subjects, sessions, semesters }: DashboardPr
 
   const activeSubjects = subjects.filter(s => !s.isArchived);
   const maxGoal = activeSubjects.length > 0 
-    ? Math.max(...activeSubjects.map(s => s.dailyGoalMinutes)) 
+    ? Math.max(1, ...activeSubjects.map(s => s.dailyGoalMinutes)) 
     : 1;
 
   const formatComparison = (current: number, previous: number) => {
@@ -173,12 +173,12 @@ export default function Dashboard({ subjects, sessions, semesters }: DashboardPr
           {activeSubjects
             .sort((a, b) => (a.order || 0) - (b.order || 0))
             .map(subject => {
-            const goal = subject.dailyGoalMinutes || 1;
+            const goal = subject.dailyGoalMinutes;
             const subjectToday = sessions
               .filter(s => s.dateLogged === today && s.subjectId === subject.id)
               .reduce((acc, s) => acc + s.durationSeconds, 0) / 60;
-            const isGoalReached = subjectToday >= goal;
-            const progress = Math.min(100, (subjectToday / goal) * 100);
+            const isGoalReached = goal === 0 ? true : subjectToday >= goal;
+            const progress = goal === 0 ? 100 : Math.min(100, (subjectToday / goal) * 100);
             const span = Math.max(3, Math.round((goal / maxGoal) * 12));
 
             return (

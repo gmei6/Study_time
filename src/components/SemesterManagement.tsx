@@ -338,7 +338,7 @@ export default function SemesterManagement({
                   <label className="text-xs text-gray-500 uppercase ml-4">Daily Goal (min)</label>
                   <input 
                     type="number"
-                    value={isNaN(newSubject.dailyGoalMinutes) || newSubject.dailyGoalMinutes === 0 ? '' : newSubject.dailyGoalMinutes}
+                    value={newSubject.dailyGoalMinutes}
                     onChange={(e) => setNewSubject({ ...newSubject, dailyGoalMinutes: parseInt(e.target.value) || 0 })}
                     className="midnight-input w-full"
                   />
@@ -402,7 +402,7 @@ export default function SemesterManagement({
                     <div className="flex items-center gap-2 mt-1">
                       <input 
                         type="number"
-                        value={isNaN(editGoalValue) || editGoalValue === 0 ? '' : editGoalValue}
+                        value={editGoalValue}
                         onChange={(e) => setEditGoalValue(parseInt(e.target.value) || 0)}
                         className="midnight-input py-1 px-2 w-20 text-xs"
                         autoFocus
