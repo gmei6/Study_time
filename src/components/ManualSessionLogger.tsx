@@ -178,6 +178,7 @@ export default function ManualSessionLogger({
                     min="1"
                     value={isNaN(minutes) || minutes === 0 ? '' : minutes}
                     onChange={(e) => setMinutes(parseInt(e.target.value) || 0)}
+                    onWheel={(e) => e.currentTarget.blur()}
                     className="midnight-input w-full pl-12"
                     placeholder="0"
                     required
@@ -193,6 +194,7 @@ export default function ManualSessionLogger({
                     min="0"
                     value={isNaN(interruptions) || interruptions === 0 ? '' : interruptions}
                     onChange={(e) => setInterruptions(parseInt(e.target.value) || 0)}
+                    onWheel={(e) => e.currentTarget.blur()}
                     className="midnight-input w-full pl-12"
                     placeholder="0"
                   />

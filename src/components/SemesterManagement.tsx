@@ -340,6 +340,7 @@ export default function SemesterManagement({
                     type="number"
                     value={newSubject.dailyGoalMinutes}
                     onChange={(e) => setNewSubject({ ...newSubject, dailyGoalMinutes: parseInt(e.target.value) || 0 })}
+                    onWheel={(e) => e.currentTarget.blur()}
                     className="midnight-input w-full"
                   />
                 </div>
@@ -404,6 +405,7 @@ export default function SemesterManagement({
                         type="number"
                         value={editGoalValue}
                         onChange={(e) => setEditGoalValue(parseInt(e.target.value) || 0)}
+                        onWheel={(e) => e.currentTarget.blur()}
                         className="midnight-input py-1 px-2 w-20 text-xs"
                         autoFocus
                       />
