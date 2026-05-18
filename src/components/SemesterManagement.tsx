@@ -16,12 +16,17 @@ interface SemesterManagementProps {
   onAddSubject: (subject: Subject) => void;
   onArchiveSubject: (id: string) => void;
   onDeleteSubject: (id: string) => void;
+  onUpdateSubjectName: (id: string, name: string) => void;
   onUpdateSubjectGoal: (id: string, goalMinutes: number) => void;
   onUpdateSubjectColor: (id: string, color: string) => void;
   onUpdateSubjectOrder: (id: string, newOrder: number) => void;
   onBulkAddSessions: (sessions: StudySession[]) => void;
   onUndoBulkImport: () => void;
   canUndoBulkImport: boolean;
+  onAddLocation: (name: string) => void;
+  onUpdateLocation: (id: string, updates: Partial<Location>) => void;
+  onArchiveLocation: (id: string) => void;
+  onDeleteLocation: (id: string) => void;
 }
 
 export default function SemesterManagement({ 
@@ -35,23 +40,33 @@ export default function SemesterManagement({
   onAddSubject, 
   onArchiveSubject, 
   onDeleteSubject,
+  onUpdateSubjectName,
   onUpdateSubjectGoal,
   onUpdateSubjectColor,
   onUpdateSubjectOrder,
   onBulkAddSessions,
   onUndoBulkImport,
-  canUndoBulkImport
+  canUndoBulkImport,
+  onAddLocation,
+  onUpdateLocation,
+  onArchiveLocation,
+  onDeleteLocation
 }: SemesterManagementProps) {
   const [showAddSemester, setShowAddSemester] = useState(false);
   const [showAddSubject, setShowAddSubject] = useState(false);
+  const [showAddLocation, setShowAddLocation] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [newSemester, setNewSemester] = useState({ name: '', startDate: '', endDate: '' });
   const [newSubject, setNewSubject] = useState({ name: '', dailyGoalMinutes: 60, color: '#ffffff' });
+  const [newLocationName, setNewLocationName] = useState('');
   const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
   const [editingSemesterId, setEditingSemesterId] = useState<string | null>(null);
+  const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
   const [editSemesterData, setEditSemesterData] = useState({ name: '', startDate: '', endDate: '' });
+  const [editSubjectNameValue, setEditSubjectNameValue] = useState<string>('');
   const [editGoalValue, setEditGoalValue] = useState<number>(60);
   const [editColorValue, setEditColorValue] = useState<string>('#ffffff');
+  const [editLocationName, setEditLocationName] = useState<string>('');
   const [showUndoConfirm, setShowUndoConfirm] = useState(false);
   const [showPurgeConfirm, setShowPurgeConfirm] = useState<string | null>(null);
 
@@ -59,6 +74,7 @@ export default function SemesterManagement({
 
   const startEditingSubject = (subject: Subject) => {
     setEditingSubjectId(subject.id);
+    setEditSubjectNameValue(subject.name);
     setEditGoalValue(subject.dailyGoalMinutes);
     setEditColorValue(subject.color);
   };
@@ -72,6 +88,11 @@ export default function SemesterManagement({
     });
   };
 
+  const startEditingLocation = (location: Location) => {
+    setEditingLocationId(location.id);
+    setEditLocationName(location.name);
+  };
+
   const cancelEditingSubject = () => {
     setEditingSubjectId(null);
   };
@@ -80,7 +101,12 @@ export default function SemesterManagement({
     setEditingSemesterId(null);
   };
 
+  const cancelEditingLocation = () => {
+    setEditingLocationId(null);
+  };
+
   const saveSubject = (id: string) => {
+    onUpdateSubjectName(id, editSubjectNameValue);
     onUpdateSubjectGoal(id, editGoalValue);
     onUpdateSubjectColor(id, editColorValue);
     setEditingSubjectId(null);
@@ -89,6 +115,11 @@ export default function SemesterManagement({
   const saveSemester = (id: string) => {
     onUpdateSemester(id, editSemesterData);
     setEditingSemesterId(null);
+  };
+
+  const saveLocation = (id: string) => {
+    onUpdateLocation(id, { name: editLocationName });
+    setEditingLocationId(null);
   };
 
   const moveSubject = (id: string, direction: 'up' | 'down') => {
@@ -398,7 +429,16 @@ export default function SemesterManagement({
                   />
                 )}
                 <div>
-                  <h4 className="font-bold text-white">{subject.name}</h4>
+                  {editingSubjectId === subject.id ? (
+                    <input 
+                      type="text"
+                      value={editSubjectNameValue}
+                      onChange={(e) => setEditSubjectNameValue(e.target.value)}
+                      className="midnight-input py-1 px-2 mb-2 w-full text-sm font-bold"
+                    />
+                  ) : (
+                    <h4 className="font-bold text-white">{subject.name}</h4>
+                  )}
                   {editingSubjectId === subject.id ? (
                     <div className="flex items-center gap-2 mt-1">
                       <input 
@@ -447,7 +487,7 @@ export default function SemesterManagement({
                 <button 
                   onClick={() => onArchiveSubject(subject.id)}
                   className={`p-2 rounded-xl transition-all ${subject.isArchived ? 'text-white bg-white/10' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
-                  title={subject.isArchived ? "Unarchive" : "Archive"}
+                  title={subject.isArchived ? "Activate" : "Deactivate"}
                 >
                   <Archive size={18} />
                 </button>
@@ -463,6 +503,109 @@ export default function SemesterManagement({
           {!activeSemester && (
             <p className="text-center text-gray-600 py-8">Create an active semester first to add subjects.</p>
           )}
+        </div>
+      </div>
+
+      <div className="midnight-panel lg:col-span-2">
+        <div className="flex justify-between items-center mb-8">
+          <h3 className="text-2xl font-bold text-white">Locations</h3>
+          <button 
+            onClick={() => setShowAddLocation(!showAddLocation)}
+            className="midnight-button p-2"
+          >
+            <Plus size={24} />
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {showAddLocation && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="space-y-4 mb-8 bg-[#050505] p-6 rounded-[32px] overflow-hidden"
+            >
+              <div className="flex gap-4">
+                <input 
+                  type="text"
+                  placeholder="Location Name (e.g., Library)"
+                  value={newLocationName}
+                  onChange={(e) => setNewLocationName(e.target.value)}
+                  className="midnight-input flex-1"
+                />
+                <button 
+                  onClick={() => {
+                    if (newLocationName) {
+                      onAddLocation(newLocationName);
+                      setNewLocationName('');
+                      setShowAddLocation(false);
+                    }
+                  }}
+                  className="midnight-button-primary px-8"
+                >
+                  Add Location
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {locations
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map(location => (
+            <div key={location.id} className="midnight-card flex items-center justify-between">
+              <div className="flex items-center gap-4 flex-1">
+                {editingLocationId === location.id ? (
+                  <input 
+                    type="text"
+                    value={editLocationName}
+                    onChange={(e) => setEditLocationName(e.target.value)}
+                    className="midnight-input py-1 px-2 w-full text-sm"
+                    autoFocus
+                  />
+                ) : (
+                  <span className={`font-bold ${location.isArchived ? 'text-gray-600 line-through' : 'text-white'}`}>
+                    {location.name}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {editingLocationId === location.id ? (
+                  <>
+                    <button onClick={() => saveLocation(location.id)} className="text-emerald-500 hover:text-emerald-400 p-1">
+                      <Check size={18} />
+                    </button>
+                    <button onClick={cancelEditingLocation} className="text-red-500 hover:text-red-400 p-1">
+                      <X size={18} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button 
+                      onClick={() => startEditingLocation(location)}
+                      className="text-gray-500 hover:text-white p-1"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button 
+                      onClick={() => onArchiveLocation(location.id)}
+                      className={`p-2 rounded-xl transition-all ${location.isArchived ? 'text-white bg-white/10' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+                      title={location.isArchived ? "Activate" : "Archive"}
+                    >
+                      <Archive size={16} />
+                    </button>
+                    <button 
+                      onClick={() => onDeleteLocation(location.id)}
+                      className="text-gray-500 hover:text-rose-500 p-1"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

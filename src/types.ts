@@ -21,6 +21,7 @@ export interface Subject {
 export interface Location {
   id: string;
   name: string;
+  isArchived: boolean;
   uid: string;
 }
 

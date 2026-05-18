@@ -195,9 +195,41 @@ export default function App() {
     const path = 'locations';
     const id = crypto.randomUUID();
     try {
-      await setDoc(doc(db, path, id), { id, name, uid: user.uid });
+      await setDoc(doc(db, path, id), { id, name, isArchived: false, uid: user.uid });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  };
+
+  const handleUpdateLocation = async (id: string, updates: Partial<Location>) => {
+    if (!user) return;
+    const path = 'locations';
+    try {
+      await updateDoc(doc(db, path, id), updates);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  };
+
+  const handleArchiveLocation = async (id: string) => {
+    if (!user) return;
+    const path = 'locations';
+    const location = locations.find(l => l.id === id);
+    if (!location) return;
+    try {
+      await updateDoc(doc(db, path, id), { isArchived: !location.isArchived });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  };
+
+  const handleDeleteLocation = async (id: string) => {
+    if (!user) return;
+    const path = 'locations';
+    try {
+      await deleteDoc(doc(db, path, id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, path);
     }
   };
 
@@ -273,6 +305,16 @@ export default function App() {
       await deleteDoc(doc(db, path, id));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, path);
+    }
+  };
+
+  const handleUpdateSubjectName = async (id: string, name: string) => {
+    if (!user) return;
+    const path = 'subjects';
+    try {
+      await updateDoc(doc(db, path, id), { name });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
     }
   };
 
@@ -439,6 +481,7 @@ export default function App() {
                 <SemesterManagement 
                   semesters={semesters}
                   subjects={subjects}
+                  locations={locations}
                   onAddSemester={handleAddSemester}
                   onUpdateSemester={handleUpdateSemester}
                   onSetActiveSemester={handleSetActiveSemester}
@@ -446,13 +489,17 @@ export default function App() {
                   onAddSubject={handleAddSubject}
                   onArchiveSubject={handleArchiveSubject}
                   onDeleteSubject={handleDeleteSubject}
+                  onUpdateSubjectName={handleUpdateSubjectName}
                   onUpdateSubjectGoal={handleUpdateSubjectGoal}
                   onUpdateSubjectColor={handleUpdateSubjectColor}
                   onUpdateSubjectOrder={handleUpdateSubjectOrder}
                   onBulkAddSessions={handleBulkAddSessions}
                   onUndoBulkImport={handleUndoBulkImport}
                   canUndoBulkImport={lastBulkImportIds.length > 0}
-                  locations={locations}
+                  onAddLocation={handleAddLocation}
+                  onUpdateLocation={handleUpdateLocation}
+                  onArchiveLocation={handleArchiveLocation}
+                  onDeleteLocation={handleDeleteLocation}
                 />
               </div>
             </div>

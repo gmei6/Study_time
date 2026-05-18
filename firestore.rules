@@ -33,6 +33,7 @@ service cloud.firestore {
     // Fields:
     //   - id: string (required) - Unique identifier
     //   - name: string (required, 1-100 chars) - Location name
+    //   - isArchived: bool (required) - Archived status
     //   - uid: string (required) - Owner's user ID
     //
     // Collection: sessions
@@ -131,13 +132,13 @@ service cloud.firestore {
     }
 
     function isValidSubject(data) {
-      return hasRequiredFields(['id', 'semesterId', 'name', 'dailyGoalMinutes', 'isArchived', 'color', 'order', 'uid']) &&
+      return hasRequiredFields(['id', 'semesterId', 'name', 'dailyGoalMinutes', 'color', 'order', 'uid']) &&
              hasOnlyAllowedFields(['id', 'semesterId', 'name', 'dailyGoalMinutes', 'isArchived', 'color', 'order', 'uid']) &&
              data.id is string &&
              data.semesterId is string &&
              data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
              data.dailyGoalMinutes is number && data.dailyGoalMinutes >= 0 &&
-             data.isArchived is bool &&
+             (!('isArchived' in data) || data.isArchived is bool) &&
              isValidColor(data.color) &&
              data.order is number &&
              data.uid is string;
@@ -145,9 +146,10 @@ service cloud.firestore {
 
     function isValidLocation(data) {
       return hasRequiredFields(['id', 'name', 'uid']) &&
-             hasOnlyAllowedFields(['id', 'name', 'uid']) &&
+             hasOnlyAllowedFields(['id', 'name', 'isArchived', 'uid']) &&
              data.id is string &&
              data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             (!('isArchived' in data) || data.isArchived is bool) &&
              data.uid is string;
     }
 

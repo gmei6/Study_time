@@ -36,9 +36,10 @@
       "properties": {
         "id": { "type": "string", "description": "Unique identifier" },
         "name": { "type": "string", "description": "Location name" },
+        "isArchived": { "type": "boolean", "description": "Whether the location is archived" },
         "uid": { "type": "string", "description": "Owner's user ID" }
       },
-      "required": ["id", "name", "uid"]
+      "required": ["id", "name", "isArchived", "uid"]
     },
     "StudySession": {
       "title": "StudySession",

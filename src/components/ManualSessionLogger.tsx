@@ -121,7 +121,7 @@ export default function ManualSessionLogger({
                   required
                 >
                   <option value="">Select a location</option>
-                  {locations.map(l => (
+                  {locations.filter(l => !l.isArchived).map(l => (
                     <option key={l.id} value={l.id}>{l.name}</option>
                   ))}
                 </select>
