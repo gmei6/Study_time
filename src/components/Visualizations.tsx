@@ -49,6 +49,7 @@ export default function Visualizations({ subjects, sessions, semesters, shortTer
   const [range, setRange] = useState<string>('7d');
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
   const [showAverageLine, setShowAverageLine] = useState<boolean>(true);
+  const [showRecentLine, setShowRecentLine] = useState<boolean>(true);
 
   const formatDuration = (minutes: number) => {
     if (minutes === 0) return '0m';
@@ -141,6 +142,18 @@ export default function Visualizations({ subjects, sessions, semesters, shortTer
     });
     const totalSum = totals.reduce((acc, val) => acc + val, 0);
     return totalSum / data.length;
+  }, [data, subjects, selectedSubjectIds]);
+
+  const mostRecentTotal = useMemo(() => {
+    if (data.length === 0) return 0;
+    const lastRow = data[data.length - 1];
+    let sum = 0;
+    subjects.forEach(subject => {
+      if (selectedSubjectIds.length === 0 || selectedSubjectIds.includes(subject.id)) {
+        sum += lastRow[subject.name] || 0;
+      }
+    });
+    return sum;
   }, [data, subjects, selectedSubjectIds]);
 
   const totalMinutes = useMemo(() => {
@@ -330,12 +343,28 @@ export default function Visualizations({ subjects, sessions, semesters, shortTer
                 }} 
               />
             )}
+            {showRecentLine && mostRecentTotal > 0 && (
+              <ReferenceLine 
+                y={mostRecentTotal} 
+                stroke="#3b82f6" 
+                strokeDasharray="4 4" 
+                strokeWidth={2}
+                label={{ 
+                  value: `${granularity === 'day' ? 'Today' : granularity === 'week' ? 'This Week' : 'This Month'}: ${formatDuration(mostRecentTotal)}`, 
+                  fill: '#3b82f6', 
+                  position: 'top',
+                  fontSize: 12,
+                  fontWeight: 'bold',
+                  fontFamily: 'JetBrains Mono, monospace'
+                }} 
+              />
+            )}
           </BarChart>
         </ResponsiveContainer>
       </div>
 
       <div className="flex flex-wrap items-center justify-between mt-6 pt-6 border-t border-white/5 gap-4">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-6">
           <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-400 hover:text-white transition-all">
             <input 
               type="checkbox" 
@@ -343,17 +372,37 @@ export default function Visualizations({ subjects, sessions, semesters, shortTer
               onChange={(e) => setShowAverageLine(e.target.checked)}
               className="rounded border-white/10 bg-[#050505] text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 w-4 h-4 cursor-pointer"
             />
-            <span>Show Average Line on Graph</span>
+            <span>Show Average Line</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-400 hover:text-white transition-all">
+            <input 
+              type="checkbox" 
+              checked={showRecentLine} 
+              onChange={(e) => setShowRecentLine(e.target.checked)}
+              className="rounded border-white/10 bg-[#050505] text-blue-500 focus:ring-blue-500 focus:ring-offset-0 w-4 h-4 cursor-pointer"
+            />
+            <span>Show Today / Recent Line</span>
           </label>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-gray-500 text-xs font-bold uppercase tracking-widest">
-            {granularity === 'day' ? 'Daily' : granularity === 'week' ? 'Weekly' : 'Monthly'} Average:
-          </span>
-          <span className="text-emerald-400 font-mono font-bold text-sm bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-            {formatDuration(averageTotal)}
-          </span>
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500 text-xs font-bold uppercase tracking-widest">
+              {granularity === 'day' ? 'Daily' : granularity === 'week' ? 'Weekly' : 'Monthly'} Average:
+            </span>
+            <span className="text-emerald-400 font-mono font-bold text-sm bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+              {formatDuration(averageTotal)}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500 text-xs font-bold uppercase tracking-widest font-sans">
+              {granularity === 'day' ? 'Today' : granularity === 'week' ? 'This Week' : 'This Month'}:
+            </span>
+            <span className="text-blue-400 font-mono font-bold text-sm bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
+              {formatDuration(mostRecentTotal)}
+            </span>
+          </div>
         </div>
       </div>
     </div>
