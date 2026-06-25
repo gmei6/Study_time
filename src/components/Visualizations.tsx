@@ -129,9 +129,8 @@ export default function Visualizations({ subjects, sessions, semesters, shortTer
     });
   }, [granularity, range, subjects, sessions, selectedSubjectIds]);
 
-  const averageTotal = useMemo(() => {
-    if (data.length === 0) return 0;
-    const totals = data.map(row => {
+  const allTotals = useMemo(() => {
+    return data.map(row => {
       let sum = 0;
       subjects.forEach(subject => {
         if (selectedSubjectIds.length === 0 || selectedSubjectIds.includes(subject.id)) {
@@ -140,21 +139,40 @@ export default function Visualizations({ subjects, sessions, semesters, shortTer
       });
       return sum;
     });
-    const totalSum = totals.reduce((acc, val) => acc + val, 0);
-    return totalSum / data.length;
   }, [data, subjects, selectedSubjectIds]);
 
+  const averageTotal = useMemo(() => {
+    if (allTotals.length === 0) return 0;
+    const totalSum = allTotals.reduce((acc, val) => acc + val, 0);
+    return totalSum / allTotals.length;
+  }, [allTotals]);
+
   const mostRecentTotal = useMemo(() => {
-    if (data.length === 0) return 0;
-    const lastRow = data[data.length - 1];
-    let sum = 0;
-    subjects.forEach(subject => {
-      if (selectedSubjectIds.length === 0 || selectedSubjectIds.includes(subject.id)) {
-        sum += lastRow[subject.name] || 0;
-      }
-    });
-    return sum;
-  }, [data, subjects, selectedSubjectIds]);
+    if (allTotals.length === 0) return 0;
+    return allTotals[allTotals.length - 1];
+  }, [allTotals]);
+
+  const periodsStudiedMore = useMemo(() => {
+    if (allTotals.length <= 1) return 0;
+    const recent = allTotals[allTotals.length - 1];
+    const previousTotals = allTotals.slice(0, -1);
+    return previousTotals.filter(total => total > recent).length;
+  }, [allTotals]);
+
+  const rankPercentile = useMemo(() => {
+    if (allTotals.length === 0) return 0;
+    if (allTotals.length === 1) return 100;
+    
+    const recent = allTotals[allTotals.length - 1];
+    const otherTotals = allTotals.slice(0, -1);
+    if (otherTotals.length === 0) return 100;
+
+    const strictlyLess = otherTotals.filter(val => val < recent).length;
+    const equals = otherTotals.filter(val => val === recent).length;
+    
+    const percentile = ((strictlyLess + equals * 0.5) / otherTotals.length) * 100;
+    return Math.round(percentile);
+  }, [allTotals]);
 
   const totalMinutes = useMemo(() => {
     const now = new Date();
@@ -363,6 +381,62 @@ export default function Visualizations({ subjects, sessions, semesters, shortTer
         </ResponsiveContainer>
       </div>
 
+      {/* Performance & Ranking Analysis Panel */}
+      <div className="mt-6 bg-[#050505]/60 border border-white/5 rounded-2xl p-5">
+        <h4 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-4 font-mono">
+          {granularity === 'day' ? "Today's" : granularity === 'week' ? "This Week's" : "This Month's"} Performance Insights
+        </h4>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-[#0c0c0c] border border-white/5 p-4 rounded-xl flex flex-col justify-between">
+            <span className="text-xs font-medium text-gray-400">
+              {granularity === 'day' ? 'Daily' : granularity === 'week' ? 'Weekly' : 'Monthly'} Average
+            </span>
+            <span className="text-xl font-bold font-mono text-emerald-400 mt-2 block">
+              {formatDuration(averageTotal)}
+            </span>
+            <span className="text-[10px] text-gray-500 mt-1 block">
+              Across selected range
+            </span>
+          </div>
+
+          <div className="bg-[#0c0c0c] border border-white/5 p-4 rounded-xl flex flex-col justify-between">
+            <span className="text-xs font-medium text-gray-400">
+              {granularity === 'day' ? "Today's Total" : granularity === 'week' ? "This Week's Total" : "This Month's Total"}
+            </span>
+            <span className="text-xl font-bold font-mono text-blue-400 mt-2 block">
+              {formatDuration(mostRecentTotal)}
+            </span>
+            <span className="text-[10px] text-gray-500 mt-1 block">
+              Current active period
+            </span>
+          </div>
+
+          <div className="bg-[#0c0c0c] border border-white/5 p-4 rounded-xl flex flex-col justify-between">
+            <span className="text-xs font-medium text-gray-400">
+              Higher Study Periods
+            </span>
+            <span className="text-xl font-bold font-mono text-indigo-400 mt-2 block">
+              {periodsStudiedMore} {periodsStudiedMore === 1 ? (granularity === 'day' ? 'day' : granularity === 'week' ? 'week' : 'month') : (granularity === 'day' ? 'days' : granularity === 'week' ? 'weeks' : 'months')}
+            </span>
+            <span className="text-[10px] text-gray-500 mt-1 block">
+              Studied more than {granularity === 'day' ? 'today' : granularity === 'week' ? 'this week' : 'this month'}
+            </span>
+          </div>
+
+          <div className="bg-[#0c0c0c] border border-white/5 p-4 rounded-xl flex flex-col justify-between">
+            <span className="text-xs font-medium text-gray-400">
+              Percentile Rank
+            </span>
+            <span className="text-xl font-bold font-mono text-amber-400 mt-2 block">
+              {rankPercentile}%
+            </span>
+            <span className="text-[10px] text-gray-500 mt-1 block">
+              Better than {rankPercentile}% of other {granularity === 'day' ? 'days' : granularity === 'week' ? 'weeks' : 'months'}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between mt-6 pt-6 border-t border-white/5 gap-4">
         <div className="flex flex-wrap items-center gap-6">
           <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-400 hover:text-white transition-all">
@@ -383,26 +457,6 @@ export default function Visualizations({ subjects, sessions, semesters, shortTer
             />
             <span>Show Today / Recent Line</span>
           </label>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-6">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500 text-xs font-bold uppercase tracking-widest">
-              {granularity === 'day' ? 'Daily' : granularity === 'week' ? 'Weekly' : 'Monthly'} Average:
-            </span>
-            <span className="text-emerald-400 font-mono font-bold text-sm bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-              {formatDuration(averageTotal)}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500 text-xs font-bold uppercase tracking-widest font-sans">
-              {granularity === 'day' ? 'Today' : granularity === 'week' ? 'This Week' : 'This Month'}:
-            </span>
-            <span className="text-blue-400 font-mono font-bold text-sm bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
-              {formatDuration(mostRecentTotal)}
-            </span>
-          </div>
         </div>
       </div>
     </div>
